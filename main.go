@@ -3,8 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/jroimartin/gocui"
+)
+
+const (
+	mainViewMinX = 60
+	mainViewMinY = 20
+	worldViewX = 120
+	worldViewY = 60
 )
 
 type coord struct {
@@ -24,7 +32,7 @@ func main() {
 	g.Mouse = true
 	g.Cursor = true
 
-	g.SetManagerFunc(layout)
+	g.SetManagerFunc(generateLayout(worldViewX, worldViewY))
 
 	viewPos := coord{0, 0}
 	if err := initKeybindings(g, &viewPos); err != nil {
@@ -40,45 +48,82 @@ func main() {
 	}
 }
 
-func layout(g *gocui.Gui) error {
-	maxX, maxY := g.Size()
+func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
+	canDisplay := false
 
-	if maxX < 40 || maxY < 20 {
+	return func(g *gocui.Gui) error {
+		maxX, maxY := g.Size()
+
+		if maxX < mainViewMinX || maxY < mainViewMinY {
+			if canDisplay {
+				v, err := g.View("Map"); if err == nil {
+					v.SetCursor(0, 0)
+				}
+			}
+			canDisplay = false
+			return errLayout(g)
+		}
+
+		if !canDisplay {
+			g.DeleteView("Error")
+			canDisplay = true
+		}
+
+		if v, err := g.SetView("Market", maxX-23, 0, maxX-1, 4); err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			v.Title = "Market"
+			fmt.Fprintln(v, "Metal :   A    1 V")
+			fmt.Fprintln(v, "Water :   A    4 V")
+			fmt.Fprintln(v, "Carbon:   A  105 V")
+		}
+
+		if v, err := g.SetView("TileInfo", maxX-23, 5, maxX-1, maxY-1); err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			v.Title = "Tile Info"
+			fmt.Fprintln(v, "Type    : plain")
+			fmt.Fprintln(v, "Quantity: -")
+			fmt.Fprintln(v, "Owned   : -")
+		}
+
+		v, err := g.SetView("Map", 0, 0, maxX-24, maxY-1); if err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			if _, err := g.SetCurrentView("Map"); err != nil {
+				return err
+			}
+			v.Title = "Map"
+			v.SetCursor(0, 0)
+		}
+
+		xc, yc := v.Cursor()
+		*posChan <- coord{xc, yc}
+
 		return nil
 	}
+}
 
-	if v, err := g.SetView("Market", maxX-23, 0, maxX-1, 4); err != nil {
+func errLayout(g *gocui.Gui) error {
+	maxX, maxY := g.Size()
+	
+	v, err := g.SetView("Error", -1, -1, maxX, maxY); if err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Market"
-		fmt.Fprintln(v, "Metal :   A    1 V")
-		fmt.Fprintln(v, "Water :   A    4 V")
-		fmt.Fprintln(v, "Carbon:   A  105 V")
-	}
+		v.Title = "Error"
+	} 
 
-	if v, err := g.SetView("TileInfo", maxX-23, 5, maxX-1, maxY-1); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		v.Title = "Tile Info"
-		fmt.Fprintln(v, "Type    : plain")
-		fmt.Fprintln(v, "Quantity: -")
-		fmt.Fprintln(v, "Owned   : -")
-	}
+	v.Clear()
+	fmt.Fprint(v, strings.Repeat("\n", (maxY - 1) / 2))
 
-	if v, err := g.SetView("Map", 0, 0, maxX-24, maxY-1); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		if _, err := g.SetCurrentView("Map"); err != nil {
-			return err
-		}
-		v.Title = "Map"
-		v.SetCursor(1, 1)
-		*posChan <- coord{1, 1}
-		v.Size()
+	indent := (maxX - 1) / 2 - 16; if indent > 0 {
+		fmt.Fprint(v, strings.Repeat(" ", indent))
 	}
+	fmt.Fprint(v, "Window too small, please resize!")
 
 	return nil
 }
@@ -133,7 +178,6 @@ func moveCursor(dx, dy int) func(g *gocui.Gui, v *gocui.View) error {
 
 		return nil
 	}
-
 }
 
 func tileUpdater(g *gocui.Gui, c *chan coord) {
