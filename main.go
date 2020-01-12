@@ -13,6 +13,8 @@ const (
 	mainViewMinY = 20
 	worldViewX = 120
 	worldViewY = 40
+	worldX = 160
+	worldY = 50
 )
 
 type coord struct {
@@ -34,8 +36,7 @@ func main() {
 
 	g.SetManagerFunc(generateLayout(worldViewX, worldViewY))
 
-	viewPos := coord{0, 0}
-	if err := initKeybindings(g, &viewPos); err != nil {
+	if err := initKeybindings(g, worldX, worldY); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -50,8 +51,6 @@ func main() {
 
 func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 	canDisplay := false
-	//topLeftX := 0
-	//topLeftY := 0
 
 	maxWorldWindowX := worldX + 2
 	maxWorldWindowY := worldY + 2
@@ -95,7 +94,7 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 				return err
 			}
 			v.Title = "Tile Info"
-			fmt.Fprintln(v, "Type    : plain")
+			fmt.Fprintln(v, "Type    : 0-0")
 			fmt.Fprintln(v, "Quantity: -")
 			fmt.Fprintln(v, "Owned   : -")
 		}
@@ -124,9 +123,6 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 			lastY = maxY
 		}
 
-		xc, yc := v.Cursor()
-		*posChan <- coord{xc, yc}
-
 		return nil
 	}
 }
@@ -152,42 +148,45 @@ func errLayout(g *gocui.Gui) error {
 	return nil
 }
 
-func initKeybindings(g *gocui.Gui, viewPos *coord) error {
+func initKeybindings(g *gocui.Gui, worldX int, worldY int) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone,
 		func(g *gocui.Gui, v *gocui.View) error {
 			return gocui.ErrQuit
 		}); err != nil {
 		return err
 	}
+
+	xOffset := 0
+	yOffset := 0
 	if err := g.SetKeybinding("Map", gocui.KeyArrowDown, gocui.ModNone,
-		moveCursor(0, 1)); err != nil {
+		moveCursor(0, 1, worldX, worldY, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.KeyArrowUp, gocui.ModNone,
-		moveCursor(0, -1)); err != nil {
+		moveCursor(0, -1, worldX, worldY, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.KeyArrowLeft, gocui.ModNone,
-		moveCursor(-1, 0)); err != nil {
+		moveCursor(-1, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.KeyArrowRight, gocui.ModNone,
-		moveCursor(1, 0)); err != nil {
+		moveCursor(1, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.MouseLeft, gocui.ModNone,
-		moveCursor(0, 0)); err != nil {
+		moveCursor(0, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.MouseRelease, gocui.ModNone,
-		moveCursor(0, 0)); err != nil {
+		moveCursor(0, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func moveCursor(dx, dy int) func(g *gocui.Gui, v *gocui.View) error {
+func moveCursor(dx, dy, worldX, worldY int, xOffset, yOffset *int) func(g *gocui.Gui, v *gocui.View) error {
 	return func(g *gocui.Gui, v *gocui.View) error {
 		xc, yc := v.Cursor()
 		maxX, maxY := v.Size()
@@ -195,10 +194,45 @@ func moveCursor(dx, dy int) func(g *gocui.Gui, v *gocui.View) error {
 		newX := xc + dx
 		newY := yc + dy
 
-		if newX >= 0 && newX < maxX && newY >= 0 && newY < maxY {
-			v.SetCursor(newX, newY)
-			*posChan <- coord{newX, newY}
+		if newX < 0 {
+			if newX + *xOffset >= 0 {
+				*xOffset = newX + *xOffset
+				newX = 0
+			} else {
+				*xOffset = 0
+				newX = 0
+			}
+		} else if newX >= maxX {
+			if newX + *xOffset < worldX {
+				*xOffset = *xOffset + newX - maxX + 1
+				newX = maxX - 1
+			} else {
+				*xOffset = worldX - maxX
+				newX = maxX - 1
+			}
 		}
+
+		if newY < 0 {
+			if newY + *yOffset >= 0 {
+				*yOffset = newY + *yOffset
+				newY = 0
+			} else {
+				*yOffset = 0
+				newY = 0
+			}
+		} else if newY >= maxY {
+			if newY + *yOffset < worldY {
+				*yOffset = *yOffset + newY - maxY + 1
+				newY = maxY - 1
+			} else {
+				*yOffset = worldY - maxY
+				newY = maxY - 1
+			}
+		}
+
+		v.SetCursor(newX, newY)
+		*posChan <- coord{newX + *xOffset, newY + *yOffset}
+
 
 		return nil
 	}
