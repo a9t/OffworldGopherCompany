@@ -56,15 +56,12 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 	maxWorldWindowX := worldX + 2
 	maxWorldWindowY := worldY + 2
 
+	var lastY int 
+
 	return func(g *gocui.Gui) error {
 		maxX, maxY := g.Size()
 
 		if maxX < mainViewMinX || maxY < mainViewMinY {
-			if canDisplay {
-				v, err := g.View("Map"); if err == nil {
-					v.SetCursor(0, 0)
-				}
-			}
 			canDisplay = false
 			return errLayout(g)
 		}
@@ -112,6 +109,19 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 			}
 			v.Title = "Map"
 			v.SetCursor(0, 0)
+
+			lastY = maxY
+		} else {
+			// on fast resizing, if the cursur happens to be on the last line,
+			// this triggers a panic; even this fix does not completely remove
+			// the issue, but it is better
+			if lastY > maxY {
+				_, yc := v.Cursor()
+				if yc == maxY - 2 {
+					v.SetCursor(0, 0)
+				}
+			}
+			lastY = maxY
 		}
 
 		xc, yc := v.Cursor()
