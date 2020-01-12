@@ -12,7 +12,7 @@ const (
 	mainViewMinX = 60
 	mainViewMinY = 20
 	worldViewX = 120
-	worldViewY = 60
+	worldViewY = 40
 )
 
 type coord struct {
@@ -50,6 +50,11 @@ func main() {
 
 func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 	canDisplay := false
+	//topLeftX := 0
+	//topLeftY := 0
+
+	maxWorldWindowX := worldX + 2
+	maxWorldWindowY := worldY + 2
 
 	return func(g *gocui.Gui) error {
 		maxX, maxY := g.Size()
@@ -69,7 +74,16 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 			canDisplay = true
 		}
 
-		if v, err := g.SetView("Market", maxX-23, 0, maxX-1, 4); err != nil {
+		sidePanelX := maxX - 23
+		if sidePanelX > maxWorldWindowX {
+			sidePanelX = maxWorldWindowX
+		}
+		windowY := maxWorldWindowY
+		if windowY > maxY {
+			windowY = maxY
+		}
+
+		if v, err := g.SetView("Market", sidePanelX, 0, sidePanelX+22, 4); err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
@@ -79,7 +93,7 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 			fmt.Fprintln(v, "Carbon:   A  105 V")
 		}
 
-		if v, err := g.SetView("TileInfo", maxX-23, 5, maxX-1, maxY-1); err != nil {
+		if v, err := g.SetView("TileInfo", sidePanelX, 5, sidePanelX+22, windowY-1); err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
@@ -89,7 +103,7 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 			fmt.Fprintln(v, "Owned   : -")
 		}
 
-		v, err := g.SetView("Map", 0, 0, maxX-24, maxY-1); if err != nil {
+		v, err := g.SetView("Map", 0, 0, sidePanelX-1, windowY-1); if err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
