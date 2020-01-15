@@ -34,9 +34,10 @@ func main() {
 	g.Mouse = true
 	g.Cursor = true
 
-	g.SetManagerFunc(generateLayout(worldViewX, worldViewY))
+	world := GenerateWorld(worldY, worldX)
+	g.SetManagerFunc(generateLayout(world, worldViewX, worldViewY))
 
-	if err := initKeybindings(g, worldX, worldY); err != nil {
+	if err := initKeybindings(g, world); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -49,7 +50,7 @@ func main() {
 	}
 }
 
-func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
+func generateLayout(world [][]int, worldX int, worldY int) func (g *gocui.Gui) error{
 	canDisplay := false
 
 	maxWorldWindowX := worldX + 2
@@ -109,7 +110,8 @@ func generateLayout(worldX int, worldY int) func (g *gocui.Gui) error{
 			v.Title = "Map"
 			v.SetCursor(0, 0)
 
-			lastY = maxY
+			printWorld(v, world, 0, 0)
+			lastY = 0
 		} else {
 			// on fast resizing, if the cursur happens to be on the last line,
 			// this triggers a panic; even this fix does not completely remove
@@ -148,7 +150,7 @@ func errLayout(g *gocui.Gui) error {
 	return nil
 }
 
-func initKeybindings(g *gocui.Gui, worldX int, worldY int) error {
+func initKeybindings(g *gocui.Gui, world [][]int) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone,
 		func(g *gocui.Gui, v *gocui.View) error {
 			return gocui.ErrQuit
@@ -159,37 +161,40 @@ func initKeybindings(g *gocui.Gui, worldX int, worldY int) error {
 	xOffset := 0
 	yOffset := 0
 	if err := g.SetKeybinding("Map", gocui.KeyArrowDown, gocui.ModNone,
-		moveCursor(0, 1, worldX, worldY, &xOffset, &yOffset)); err != nil {
+		moveCursor(world, 0, 1, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.KeyArrowUp, gocui.ModNone,
-		moveCursor(0, -1, worldX, worldY, &xOffset, &yOffset)); err != nil {
+		moveCursor(world, 0, -1, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.KeyArrowLeft, gocui.ModNone,
-		moveCursor(-1, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
+		moveCursor(world, -1, 0, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.KeyArrowRight, gocui.ModNone,
-		moveCursor(1, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
+		moveCursor(world, 1, 0, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.MouseLeft, gocui.ModNone,
-		moveCursor(0, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
+		moveCursor(world, 0, 0, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("Map", gocui.MouseRelease, gocui.ModNone,
-		moveCursor(0, 0, worldX, worldY, &xOffset, &yOffset)); err != nil {
+		moveCursor(world, 0, 0, &xOffset, &yOffset)); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func moveCursor(dx, dy, worldX, worldY int, xOffset, yOffset *int) func(g *gocui.Gui, v *gocui.View) error {
+func moveCursor(world [][]int, dx, dy int, xOffset *int, yOffset *int) func(g *gocui.Gui, v *gocui.View) error {
 	return func(g *gocui.Gui, v *gocui.View) error {
 		xc, yc := v.Cursor()
 		maxX, maxY := v.Size()
+
+		worldY := len(world)
+		worldX := len(world[0])
 
 		newX := xc + dx
 		newY := yc + dy
@@ -230,10 +235,11 @@ func moveCursor(dx, dy, worldX, worldY int, xOffset, yOffset *int) func(g *gocui
 			}
 		}
 
+		v.Clear()
 		v.SetCursor(newX, newY)
 		*posChan <- coord{newX + *xOffset, newY + *yOffset}
 
-
+		printWorld(v, world, *yOffset, *xOffset)
 		return nil
 	}
 }
@@ -247,5 +253,22 @@ func tileUpdater(g *gocui.Gui, c *chan coord) {
 			fmt.Fprintln(v, "Quantity: -")
 			fmt.Fprintln(v, "Owned   : -")
 		}
+	}
+}
+
+func printWorld(v *gocui.View, world [][]int, offsetY, offsetX int) {
+	width, height := v.Size()
+	width -= 2
+	height -= 2
+
+	for i := 0; i < height; i++ {
+		for j := 0; j < width; j++ {
+			if world[i + offsetY][j + offsetX] == 0 {
+				fmt.Fprint(v, " ")
+			} else {
+				fmt.Fprintf(v, "%d", world[i + offsetY][j + offsetX])
+			}
+		}
+		fmt.Fprintln(v, "")
 	}
 }
