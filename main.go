@@ -25,7 +25,7 @@ type coord struct {
 var posChan *chan coord
 
 func main() {
-	g, err := gocui.NewGui(gocui.OutputNormal)
+	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -34,10 +34,10 @@ func main() {
 	g.Mouse = true
 	g.Cursor = true
 
-	world := GenerateWorld(worldY, worldX)
-	g.SetManagerFunc(generateLayout(world, worldViewX, worldViewY))
+	game := GenerateGame(worldY, worldX, 1)
+	g.SetManagerFunc(generateLayout(game.WorldMap, worldViewX, worldViewY))
 
-	if err := initKeybindings(g, world); err != nil {
+	if err := initKeybindings(g, game.WorldMap); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -50,7 +50,7 @@ func main() {
 	}
 }
 
-func generateLayout(world [][]int, worldX int, worldY int) func (g *gocui.Gui) error{
+func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.Gui) error{
 	canDisplay := false
 
 	maxWorldWindowX := worldX + 2
@@ -150,7 +150,7 @@ func errLayout(g *gocui.Gui) error {
 	return nil
 }
 
-func initKeybindings(g *gocui.Gui, world [][]int) error {
+func initKeybindings(g *gocui.Gui, world [][]*TileInfo) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone,
 		func(g *gocui.Gui, v *gocui.View) error {
 			return gocui.ErrQuit
@@ -188,7 +188,7 @@ func initKeybindings(g *gocui.Gui, world [][]int) error {
 	return nil
 }
 
-func moveCursor(world [][]int, dx, dy int, xOffset *int, yOffset *int) func(g *gocui.Gui, v *gocui.View) error {
+func moveCursor(world [][]*TileInfo, dx, dy int, xOffset *int, yOffset *int) func(g *gocui.Gui, v *gocui.View) error {
 	return func(g *gocui.Gui, v *gocui.View) error {
 		xc, yc := v.Cursor()
 		maxX, maxY := v.Size()
@@ -256,18 +256,29 @@ func tileUpdater(g *gocui.Gui, c *chan coord) {
 	}
 }
 
-func printWorld(v *gocui.View, world [][]int, offsetY, offsetX int) {
+func getTileString(tileInfo *TileInfo) string {
+	if tileInfo == nil {
+		return " "
+	}
+
+	var pattern = ""
+	switch tileInfo.TileType {
+	case TileEmpty: return " "
+	case TileMetal: pattern = "\033[38;5;0m\033[48;5;1m%d\033[0m"
+	case TileWater: pattern = "\033[38;5;0m\033[48;5;2m%d\033[0m"
+	case TileCarbon: pattern = "\033[38;5;0m\033[48;5;3m%d\033[0m"
+	default: return "\033[38;5;0m\033[48;5;3m?\033[0m"
+	}
+
+	return fmt.Sprintf(pattern, tileInfo.Quantity)
+}
+
+func printWorld(v *gocui.View, world [][]*TileInfo, offsetY, offsetX int) {
 	width, height := v.Size()
-	width -= 2
-	height -= 2
 
 	for i := 0; i < height; i++ {
 		for j := 0; j < width; j++ {
-			if world[i + offsetY][j + offsetX] == 0 {
-				fmt.Fprint(v, " ")
-			} else {
-				fmt.Fprintf(v, "%d", world[i + offsetY][j + offsetX])
-			}
+			fmt.Fprint(v, getTileString(world[i + offsetY][j + offsetX]))
 		}
 		fmt.Fprintln(v, "")
 	}
