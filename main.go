@@ -270,7 +270,7 @@ func tileUpdater(g *gocui.Gui, game *Game, c *chan coord) {
 			if tileInfo == nil {
 				quantity = 0
 			} else {
-				quantity = tileInfo.quantity
+				quantity = tileInfo.Quantity
 			}
 
 			var name string
