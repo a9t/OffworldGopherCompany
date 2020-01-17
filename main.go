@@ -43,7 +43,7 @@ func main() {
 
 	ch := make(chan coord)
 	posChan = &ch
-	go tileUpdater(g, posChan)
+	go tileUpdater(g, game, posChan)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Fatalln(err)
@@ -56,7 +56,7 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 	maxWorldWindowX := worldX + 2
 	maxWorldWindowY := worldY + 2
 
-	var lastY int 
+	var lastY int
 
 	return func(g *gocui.Gui) error {
 		maxX, maxY := g.Size()
@@ -95,9 +95,10 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 				return err
 			}
 			v.Title = "Tile Info"
-			fmt.Fprintln(v, "Type    : 0-0")
+			fmt.Fprintln(v, "Coord   : 0-0")
+			fmt.Fprintln(v, "Type    : -")
 			fmt.Fprintln(v, "Quantity: -")
-			fmt.Fprintln(v, "Owned   : -")
+			fmt.Fprintln(v, "Owner   : -")
 		}
 
 		v, err := g.SetView("Map", 0, 0, sidePanelX-1, windowY-1); if err != nil {
@@ -113,7 +114,7 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 			printWorld(v, world, 0, 0)
 			lastY = 0
 		} else {
-			// on fast resizing, if the cursur happens to be on the last line,
+			// on fast resizing, if the cursor happens to be on the last line,
 			// this triggers a panic; even this fix does not completely remove
 			// the issue, but it is better
 			if lastY > maxY {
@@ -131,13 +132,13 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 
 func errLayout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	
+
 	v, err := g.SetView("Error", -1, -1, maxX, maxY); if err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Title = "Error"
-	} 
+	}
 
 	v.Clear()
 	fmt.Fprint(v, strings.Repeat("\n", (maxY - 1) / 2))
@@ -244,14 +245,45 @@ func moveCursor(world [][]*TileInfo, dx, dy int, xOffset *int, yOffset *int) fun
 	}
 }
 
-func tileUpdater(g *gocui.Gui, c *chan coord) {
+func tileUpdater(g *gocui.Gui, game *Game, c *chan coord) {
 	for {
 		cursor := <- *c
 		if v, err := g.View("TileInfo"); err == nil {
 			v.Clear()
-			fmt.Fprintf(v, "Type    : %d-%d\n", cursor.x, cursor.y)
-			fmt.Fprintln(v, "Quantity: -")
-			fmt.Fprintln(v, "Owned   : -")
+
+			tileInfo := game.WorldMap[cursor.y][cursor.x]
+
+			var typeString string
+			if tileInfo == nil {
+				typeString = "empty"
+			} else {
+				switch tileInfo.TileType {
+				case TileEmpty: typeString = "empty"
+				case TileMetal: typeString = "metal"
+				case TileWater: typeString = "water"
+				case TileCarbon: typeString = "carbon"
+				default: typeString =  "unknown"
+				}
+			}
+
+			var quantity int
+			if tileInfo == nil {
+				quantity = 0
+			} else {
+				quantity = tileInfo.quantity
+			}
+
+			var name string
+			if tileInfo == nil || tileInfo.player == nil {
+				name = "-"
+			} else {
+				name = *(tileInfo.player.name)
+			}
+
+			fmt.Fprintf(v, "Coord   : %d-%d\n", cursor.x, cursor.y)
+			fmt.Fprintf(v, "Type    : %s\n", typeString)
+			fmt.Fprintf(v, "Quantity: %d\n", quantity)
+			fmt.Fprintf(v, "Owner   : %s\n", name)
 		}
 	}
 }
