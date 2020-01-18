@@ -35,9 +35,11 @@ func main() {
 	g.Cursor = true
 
 	game := GenerateGame(worldY, worldX, 1)
+	player := game.registerPlayer("Player1")
+
 	g.SetManagerFunc(generateLayout(game.WorldMap, worldViewX, worldViewY))
 
-	if err := initKeybindings(g, game.WorldMap); err != nil {
+	if err := initKeybindings(g, player, game.WorldMap); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -151,7 +153,7 @@ func errLayout(g *gocui.Gui) error {
 	return nil
 }
 
-func initKeybindings(g *gocui.Gui, world [][]*TileInfo) error {
+func initKeybindings(g *gocui.Gui, player *Player, world [][]*TileInfo) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone,
 		func(g *gocui.Gui, v *gocui.View) error {
 			return gocui.ErrQuit
@@ -183,6 +185,26 @@ func initKeybindings(g *gocui.Gui, world [][]*TileInfo) error {
 	}
 	if err := g.SetKeybinding("Map", gocui.MouseRelease, gocui.ModNone,
 		moveCursor(world, 0, 0, &xOffset, &yOffset)); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("Map", 'c', gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.claim(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
+		}); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("Map", 'e', gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.buildExtractor(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
+		}); err != nil {
 		return err
 	}
 
@@ -293,16 +315,23 @@ func getTileString(tileInfo *TileInfo) string {
 		return " "
 	}
 
+	var ownerColor int
+	if tileInfo.player == nil {
+		ownerColor = 0
+	} else {
+		ownerColor = 4
+	}
+
 	var pattern = ""
 	switch tileInfo.TileType {
-	case TileEmpty: return " "
-	case TileMetal: pattern = "\033[38;5;0m\033[48;5;1m%d\033[0m"
-	case TileWater: pattern = "\033[38;5;0m\033[48;5;2m%d\033[0m"
-	case TileCarbon: pattern = "\033[38;5;0m\033[48;5;3m%d\033[0m"
+	case TileEmpty: pattern = "\033[38;5;%dm\033[48;5;7m%d\033[0m"
+	case TileMetal: pattern = "\033[38;5;%dm\033[48;5;1m%d\033[0m"
+	case TileWater: pattern = "\033[38;5;%dm\033[48;5;2m%d\033[0m"
+	case TileCarbon: pattern = "\033[38;5;%dm\033[48;5;3m%d\033[0m"
 	default: return "\033[38;5;0m\033[48;5;3m?\033[0m"
 	}
 
-	return fmt.Sprintf(pattern, tileInfo.Quantity)
+	return fmt.Sprintf(pattern, ownerColor, tileInfo.Quantity)
 }
 
 func printWorld(v *gocui.View, world [][]*TileInfo, offsetY, offsetX int) {

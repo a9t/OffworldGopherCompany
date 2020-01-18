@@ -23,23 +23,73 @@ const (
 type TileInfo struct {
 	TileType TileType
 	Quantity int
-	player *PlayerInfo
+	Level int
+	player *Player
 }
 
-// PlayerInfo data about the player
-type PlayerInfo struct {
+// Player data about the player
+type Player struct {
 	name *string
 	resources map[string]int
 	tiles []*TileInfo
+	game *Game
 }
 
 // Game struct
 type Game struct {
 	WorldMap [][]*TileInfo
-	players []*PlayerInfo
+	players []*Player
 }
 
-func (game *Game) registerPlayer(name string) *PlayerInfo {
+func isWithinLimits(worldMap [][]*TileInfo, x, y int) bool {
+	return x >= 0 && y >= 0 && y < len(worldMap) && x < len(worldMap[0])
+}
+
+func (p *Player) claim(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		tile = new(TileInfo)
+		tile.TileType = TileEmpty
+		tile.Quantity = 0
+		tile.player = p
+
+		p.game.WorldMap[y][x] = tile
+	} else if tile.player == nil {
+		tile.player = p
+	} else {
+		return -1
+	}
+
+	return 0
+}
+
+func (p *Player) buildExtractor(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		return -1
+	} else if tile.player != p {
+		return -1
+	} else if tile.Level != 0 {
+		return -1
+	}
+
+	if tile.TileType == TileMetal || tile.TileType == TileMetal || 	tile.TileType == TileCarbon {
+		tile.Level++
+		return 0
+	}
+
+	return -1
+}
+
+func (game *Game) registerPlayer(name string) *Player {
 	for _, player := range game.players {
 		if player.name == nil {
 			player.name = &name
@@ -130,12 +180,14 @@ func GenerateGame(lines int, cols int, playerCount int) *Game {
 	}
 	addResources(worldMap)
 
-	players := make([]*PlayerInfo, playerCount)
+	players := make([]*Player, playerCount)
+	game := Game{worldMap, players}
 	for i := 0; i < playerCount; i++ {
-		players[i] = new(PlayerInfo)
+		players[i] = new(Player)
 		players[i].resources = make(map[string]int)
 		players[i].tiles = make([]*TileInfo, 0)
+		players[i].game = &game
 	}
 
-	return &Game{worldMap, players}
+	return &game
 }
