@@ -92,7 +92,7 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 			fmt.Fprintln(v, "Carbon:   A  105 V")
 		}
 
-		if v, err := g.SetView("TileInfo", sidePanelX, 5, sidePanelX+22, windowY-1); err != nil {
+		if v, err := g.SetView("TileInfo", sidePanelX, 5, sidePanelX+22, 10); err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
@@ -103,14 +103,23 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 			fmt.Fprintln(v, "Owner   : -")
 		}
 
-		v, err := g.SetView("Map", 0, 0, sidePanelX-1, windowY-1); if err != nil {
+		if v, err := g.SetView("Actions", sidePanelX, 11, sidePanelX+22, windowY-1); err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			v.Title = "Actions"
+			fmt.Fprintln(v, "c - claim")
+			fmt.Fprintln(v, "b - build")
+		}
+
+		v, err := g.SetView("Map", 0, 0, sidePanelX-1, windowY-6); if err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
 			if _, err := g.SetCurrentView("Map"); err != nil {
 				return err
 			}
-			v.Title = "Map"
+			v.Title = "World"
 			v.SetCursor(0, 0)
 
 			printWorld(v, world, 0, 0)
@@ -126,6 +135,13 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 				}
 			}
 			lastY = maxY
+		}
+
+		if v, err := g.SetView("Notifications", 0, windowY-5, sidePanelX-1, windowY-1); err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			v.Title = "Notifications"
 		}
 
 		return nil
