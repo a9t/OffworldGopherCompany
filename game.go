@@ -81,12 +81,48 @@ func (p *Player) buildExtractor(x, y int) int {
 		return -1
 	}
 
-	if tile.TileType == TileMetal || tile.TileType == TileMetal || 	tile.TileType == TileCarbon {
+	if tile.TileType == TileWater || tile.TileType == TileMetal || 	tile.TileType == TileCarbon {
 		tile.Level++
 		return 0
 	}
 
 	return -1
+}
+
+func (p *Player) upgrade(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		return -1
+	} else if tile.player != p {
+		return -1
+	} else if tile.Level < 1 || tile.Level == 3 {
+		return -1
+	}
+
+	tile.Level++
+	return 0
+}
+
+func (p *Player) destroy(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		return -1
+	} else if tile.player != p {
+		return -1
+	} else if tile.Level == 0 {
+		return -1
+	}
+
+	tile.Level = 0
+	return 0
 }
 
 func (game *Game) registerPlayer(name string) *Player {

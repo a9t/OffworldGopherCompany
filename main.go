@@ -19,7 +19,7 @@ const (
 	rightViewWidth = 30
 	notificationViewHeight = 5
 	marketViewHeight = 5
-	infoViewHeight = 6
+	infoViewHeight = 7
 )
 
 type coord struct {
@@ -50,7 +50,7 @@ func main() {
 
 	ch := make(chan coord)
 	posChan = &ch
-	go tileUpdater(g, game, posChan)
+	go tileUpdater(g, player, game, posChan)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Fatalln(err)
@@ -229,6 +229,26 @@ func initKeybindings(g *gocui.Gui, player *Player, world [][]*TileInfo) error {
 		return err
 	}
 
+	if err := g.SetKeybinding("Map", 'u', gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.upgrade(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
+		}); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("Map", 'd', gocui.ModNone,
+	func(g *gocui.Gui, v *gocui.View) error {
+		xc, yc := v.Cursor()
+		player.destroy(xc + xOffset, yc + yOffset)
+		moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -288,7 +308,7 @@ func moveCursor(world [][]*TileInfo, dx, dy int, xOffset *int, yOffset *int) fun
 	}
 }
 
-func tileUpdater(g *gocui.Gui, game *Game, c *chan coord) {
+func tileUpdater(g *gocui.Gui, p *Player, game *Game, c *chan coord) {
 	for {
 		cursor := <- *c
 		if v, err := g.View("TileInfo"); err == nil {
@@ -323,10 +343,42 @@ func tileUpdater(g *gocui.Gui, game *Game, c *chan coord) {
 				name = *(tileInfo.player.name)
 			}
 
+			var level int
+			if tileInfo == nil {
+				level = 0
+			} else {
+				level = tileInfo.Level
+			}
+
 			fmt.Fprintf(v, "Coord   : %d-%d\n", cursor.x, cursor.y)
 			fmt.Fprintf(v, "Type    : %s\n", typeString)
 			fmt.Fprintf(v, "Quantity: %d\n", quantity)
+			fmt.Fprintf(v, "Level   : %d\n", level)
 			fmt.Fprintf(v, "Owner   : %s\n", name)
+		}
+
+		if v, err := g.View("Actions"); err == nil {
+			v.Clear()
+
+			tileInfo := game.WorldMap[cursor.y][cursor.x]
+
+			if tileInfo == nil || tileInfo.player == nil {
+				fmt.Fprintln(v, "C - claim")
+			} else if tileInfo.player == p {
+				if tileInfo.TileType == TileEmpty {
+					fmt.Fprintln(v, "Q - ?????????")
+				} else {
+					if tileInfo.Level == 0 {
+						fmt.Fprintln(v, "E - extractor")
+					} else if tileInfo.Level < 3 {
+						fmt.Fprintln(v, "U - upgrade")
+					}
+
+					if tileInfo.Level > 0 {
+						fmt.Fprintln(v, "D - destroy")
+					}
+				}
+			}
 		}
 	}
 }
