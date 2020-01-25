@@ -240,11 +240,41 @@ func initKeybindings(g *gocui.Gui, player *Player, world [][]*TileInfo) error {
 	}
 
 	if err := g.SetKeybinding("Map", 'd', gocui.ModNone,
-	func(g *gocui.Gui, v *gocui.View) error {
-		xc, yc := v.Cursor()
-		player.destroy(xc + xOffset, yc + yOffset)
-		moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
-		return nil
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.destroy(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("Map", 't', gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.buildWindTurbine(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("Map", 'e', gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.buildElectrolysisCenter(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("Map", 'x', gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			xc, yc := v.Cursor()
+			player.buildChemicalPlant(xc + xOffset, yc + yOffset)
+			moveCursor(world, 0, 0, &xOffset, &yOffset)(g, v)
+			return nil
 	}); err != nil {
 		return err
 	}
@@ -325,6 +355,9 @@ func tileUpdater(g *gocui.Gui, p *Player, game *Game, c *chan coord) {
 				case TileMetal: typeString = "metal"
 				case TileWater: typeString = "water"
 				case TileCarbon: typeString = "carbon"
+				case TileWind: typeString = "wind turbine"
+				case TileElectro: typeString = "electrolysis center"
+				case TileChem: typeString = "chemical plant"
 				default: typeString =  "unknown"
 				}
 			}
@@ -366,7 +399,9 @@ func tileUpdater(g *gocui.Gui, p *Player, game *Game, c *chan coord) {
 				fmt.Fprintln(v, "C - claim")
 			} else if tileInfo.player == p {
 				if tileInfo.TileType == TileEmpty {
-					fmt.Fprintln(v, "Q - ?????????")
+					fmt.Fprintln(v, "T - wind turbine")
+					fmt.Fprintln(v, "X - chemical plant")
+					fmt.Fprintln(v, "E - electrolysis center")
 				} else {
 					if tileInfo.Level == 0 {
 						fmt.Fprintln(v, "E - extractor")

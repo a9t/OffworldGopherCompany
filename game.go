@@ -17,7 +17,18 @@ const (
 	TileWater
 	// TileCarbon identifies a tile with carbon
 	TileCarbon
+
+	// TileHQ identifies a tile the HQ of a player
+	TileHQ
+	// TileWind identifies a tile with a wind farm
+	TileWind
+	// TileElectro identifies a tile with an electrolysis center
+	TileElectro
+	// TileChem identifies a tile with a chemical plant
+	TileChem
 )
+
+
 
 // TileInfo data about the map tile
 type TileInfo struct {
@@ -89,6 +100,66 @@ func (p *Player) buildExtractor(x, y int) int {
 	return -1
 }
 
+func (p *Player) buildWindTurbine(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		return -1
+	} else if tile.player != p {
+		return -1
+	} else if tile.TileType != TileEmpty {
+		return -1
+	}
+
+	tile.TileType = TileWind
+	tile.Level++
+
+	return 0
+}
+
+func (p *Player) buildElectrolysisCenter(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		return -1
+	} else if tile.player != p {
+		return -1
+	} else if tile.TileType != TileEmpty {
+		return -1
+	}
+
+	tile.TileType = TileElectro
+	tile.Level++
+
+	return 0
+}
+
+func (p *Player) buildChemicalPlant(x, y int) int {
+	if !isWithinLimits(p.game.WorldMap, x, y) {
+		return -1
+	}
+
+	tile := p.game.WorldMap[y][x]
+	if tile == nil {
+		return -1
+	} else if tile.player != p {
+		return -1
+	} else if tile.TileType != TileEmpty {
+		return -1
+	}
+
+	tile.TileType = TileWind
+	tile.Level++
+
+	return 0
+}
+
 func (p *Player) upgrade(x, y int) int {
 	if !isWithinLimits(p.game.WorldMap, x, y) {
 		return -1
@@ -119,6 +190,10 @@ func (p *Player) destroy(x, y int) int {
 		return -1
 	} else if tile.Level == 0 {
 		return -1
+	}
+
+	if tile.TileType != TileWater && tile.TileType != TileMetal && tile.TileType != TileCarbon {
+		tile.TileType = TileEmpty
 	}
 
 	tile.Level = 0
