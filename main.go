@@ -381,7 +381,7 @@ func tileUpdater(g *gocui.Gui, p *Player, game *Game, c *chan coord) {
 				case TileWind: typeString = "wind turbine"
 				case TileElectro: typeString = "electrolysis center"
 				case TileChem: typeString = "chemical plant"
-				default: typeString =  "unknown"
+				default: typeString = "unknown"
 				}
 			}
 
@@ -446,23 +446,54 @@ func getTileString(tileInfo *TileInfo) string {
 		return " "
 	}
 
-	var ownerColor int
-	if tileInfo.player == nil {
-		ownerColor = 0
-	} else {
-		ownerColor = 4
-	}
+	resources := [5]string{"0", "1", "2", "3", "4"}
 
-	var pattern = ""
+	textColor := 6
+	backgroundColor := 0
+	text := "*"
+
 	switch tileInfo.TileType {
-	case TileEmpty: pattern = "\033[38;5;%dm\033[48;5;7m%d\033[0m"
-	case TileMetal: pattern = "\033[38;5;%dm\033[48;5;1m%d\033[0m"
-	case TileWater: pattern = "\033[38;5;%dm\033[48;5;2m%d\033[0m"
-	case TileCarbon: pattern = "\033[38;5;%dm\033[48;5;3m%d\033[0m"
-	default: return "\033[38;5;0m\033[48;5;3m?\033[0m"
+	case TileEmpty:
+		text = " "
+	case TileHQ:
+		text = "H"
+	case TileWind:
+		text = "T"
+	case TileElectro:
+		text = "E"
+	case TileChem:
+		text = "X"
+	default:
+		text = "?"
 	}
 
-	return fmt.Sprintf(pattern, ownerColor, tileInfo.Quantity)
+	if tileInfo.player == nil {
+		backgroundColor = 0
+		switch tileInfo.TileType {
+		case TileMetal:
+			textColor = 1
+			text = resources[tileInfo.Quantity]
+		case TileWater:
+			textColor = 2
+			text = resources[tileInfo.Quantity]
+		case TileCarbon:
+			textColor = 3
+			text = resources[tileInfo.Quantity]
+		}
+	} else {
+		backgroundColor = 4
+		textColor = 7
+		switch tileInfo.TileType {
+		case TileMetal:
+			text = "M"
+		case TileWater:
+			text = "W"
+		case TileCarbon:
+			text = "C"
+		}
+	}
+
+	return fmt.Sprintf("\033[38;5;%dm\033[48;5;%dm%s\033[0m", textColor, backgroundColor, text)
 }
 
 func printWorld(v *gocui.View, world [][]*TileInfo, offsetY, offsetX int) {
