@@ -28,8 +28,6 @@ const (
 	TileChem
 )
 
-
-
 // TileInfo data about the map tile
 type TileInfo struct {
 	TileType TileType
@@ -38,18 +36,63 @@ type TileInfo struct {
 	player *Player
 }
 
+func (p *Player) updateResources(tile *TileInfo) {
+	var percentage = 0.0
+	switch tile.Level {
+	case 1: percentage = 0.4
+	case 2: percentage = 0.65
+	case 3: percentage = 1.
+	default: return
+	}
+
+	switch tile.TileType {
+	case TileMetal: p.metal += float64(tile.Quantity) * percentage
+	case TileWater: p.water += float64(tile.Quantity) * percentage
+	case TileCarbon: p.carbon += float64(tile.Quantity) * percentage
+	}
+}
+
 // Player data about the player
 type Player struct {
 	name *string
-	resources map[string]int
 	tiles []*TileInfo
 	game *Game
+	notification chan struct{}
+
+	funds float64
+	debt float64
+	carbon float64
+	water float64
+	metal float64
+	energy float64
+	chemicals float64
+	fuel float64
+	oxygen float64
 }
 
 // Game struct
 type Game struct {
 	WorldMap [][]*TileInfo
 	players []*Player
+}
+
+func (game *Game) run(done *chan struct{}) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-*done:
+			return
+		case <-ticker.C:
+			for _, p := range game.players {
+				for _, t := range p.tiles {
+					p.updateResources(t)
+				}
+				p.notification <- struct{}{}
+			}
+		}
+	}
 }
 
 func isWithinLimits(worldMap [][]*TileInfo, x, y int) bool {
@@ -74,6 +117,8 @@ func (p *Player) claim(x, y int) int {
 	} else {
 		return -1
 	}
+
+	p.tiles = append(p.tiles, tile)
 
 	return 0
 }
@@ -295,9 +340,19 @@ func GenerateGame(lines int, cols int, playerCount int) *Game {
 	game := Game{worldMap, players}
 	for i := 0; i < playerCount; i++ {
 		players[i] = new(Player)
-		players[i].resources = make(map[string]int)
 		players[i].tiles = make([]*TileInfo, 0)
 		players[i].game = &game
+		players[i].notification = make(chan struct{})
+
+		players[i].funds = 0.
+		players[i].debt = 0.
+		players[i].water = 0.
+		players[i].carbon = 0.
+		players[i].metal = 0.
+		players[i].energy = 0.
+		players[i].fuel = 0.
+		players[i].oxygen = 0.
+		players[i].chemicals = 0.
 	}
 
 	return &game

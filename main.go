@@ -52,8 +52,31 @@ func main() {
 	posChan = &ch
 	go tileUpdater(g, player, game, posChan)
 
+	go listenNotifications(player, g)
+
+	done := make(chan struct{})
+	go game.run(&done)
+
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Fatalln(err)
+	}
+}
+
+func listenNotifications(player *Player, g *gocui.Gui) {
+	for {
+		select {
+		case <- player.notification:
+			g.Update(func(g *gocui.Gui) error {
+				if v, err := g.View("Market"); err == nil {
+					v.Clear()
+
+					fmt.Fprintf(v, "Metal : [%4.f]  A  100 V\n", player.metal)
+					fmt.Fprintf(v, "Water : [%4.f]  A  100 V\n", player.water)
+					fmt.Fprintf(v, "Carbon: [%4.f]  A  100 V\n", player.carbon)
+				}
+				return nil
+			})
+		}
 	}
 }
 
@@ -92,9 +115,9 @@ func generateLayout(world [][]*TileInfo, worldX int, worldY int) func (g *gocui.
 				return err
 			}
 			v.Title = "Market"
-			fmt.Fprintln(v, "Metal :   A    1 V")
-			fmt.Fprintln(v, "Water :   A    4 V")
-			fmt.Fprintln(v, "Carbon:   A  105 V")
+			fmt.Fprintln(v, "Metal : [   0]  A  100 V")
+			fmt.Fprintln(v, "Water : [   0]  A  100 V")
+			fmt.Fprintln(v, "Carbon: [   0]  A  100 V")
 		}
 
 		if v, err := g.SetView("TileInfo", worldWindowX, marketViewHeight, worldWindowX+rightViewWidth-1, marketViewHeight+infoViewHeight-1); err != nil {
