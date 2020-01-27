@@ -199,7 +199,7 @@ func (p *Player) buildChemicalPlant(x, y int) int {
 		return -1
 	}
 
-	tile.TileType = TileWind
+	tile.TileType = TileChem
 	tile.Level++
 
 	return 0
