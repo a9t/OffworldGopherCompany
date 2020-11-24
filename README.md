@@ -3,6 +3,8 @@
 # OffworldGopherCompany
 TUI game inspired by Offworld Trading Company
 
+This is far from being functional, but I will not be working on it anymore.
+
 ## Goals
 * practice Go language programming
 * explore TUI libraries
@@ -11,7 +13,7 @@ TUI game inspired by Offworld Trading Company
 ## Installation
 Simply run:
 ```
-$ go get github.com/jroimartin/gocui
+$ go get github.com/a9t/OffworldGopherCompany
 ```
 
 The project uses the [gocui](https://github.com/jroimartin/gocui/) library which you can either get explicitly:
